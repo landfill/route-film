@@ -1,0 +1,83 @@
+{
+  "checkedOn": "2026-10-23 Asia/Seoul",
+  "tests": {
+    "passed": 18,
+    "failed": 0,
+    "skipped": 0
+  },
+  "movies": [
+    {
+      "name": "kyoto",
+      "trip": "바다로 향하는 느린 하루",
+      "duration": "60.000000",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "frames": "1800",
+      "videoCodec": "h264",
+      "audioCodec": "aac",
+      "audioPeakDb": -18.7,
+      "audioMeanDb": -29.1,
+      "blackSegments": 0,
+      "fullDecode": "passed",
+      "poster": "A3 single-page PDF, vector SVG, 3508x4961 PNG"
+    },
+    {
+      "name": "seoul",
+      "trip": "서울, 푸른 시간의 산책",
+      "duration": "60.000000",
+      "width": 1920,
+      "height": 1080,
+      "fps": "30/1",
+      "frames": "1800",
+      "videoCodec": "h264",
+      "audioCodec": "aac",
+      "audioPeakDb": -18.6,
+      "audioMeanDb": -29.1,
+      "blackSegments": 0,
+      "fullDecode": "passed",
+      "poster": "A3 single-page PDF, vector SVG, 3508x4961 PNG"
+    },
+    {
+      "name": "portrait",
+      "trip": "바다로 향하는 느린 하루",
+      "duration": "60.000000",
+      "width": 1080,
+      "height": 1920,
+      "fps": "30/1",
+      "frames": "1800",
+      "videoCodec": "h264",
+      "audioCodec": "aac",
+      "audioPeakDb": -18.7,
+      "audioMeanDb": -29.1,
+      "blackSegments": 0,
+      "fullDecode": "passed",
+      "poster": "A3 single-page PDF, vector SVG, 3508x4961 PNG"
+    }
+  ],
+  "browser": {
+    "checks": [
+      "Initial atlas and 5-stop trip load",
+      "Invalid draft persists while last valid preview survives reload; correction clears error",
+      "Place edit updates map and poster and restores on reload",
+      "Add/remove, real JSON download and second-trip import",
+      "Playback, seeking, EN interface and mobile layout without horizontal overflow",
+      "Corrupted storage recovers to a usable sample",
+      "Actual Chromium MP4 playback and scene seeking: 서울, 푸른 시간의 산책 1920x1080",
+      "Actual Chromium MP4 playback and scene seeking: 바다로 향하는 느린 하루 1080x1920",
+      "Actual Chromium MP4 playback and scene seeking: 서울, 푸른 시간의 산책 1920x1080"
+    ],
+    "pageErrors": []
+  },
+  "standalone": {
+    "offline": true,
+    "loading": "setContent (managed Chromium blocks file URL navigation)",
+    "checks": [
+      "selection",
+      "synchronized map and film preview",
+      "playback"
+    ],
+    "networkRequests": [],
+    "pageErrors": []
+  }
+}
