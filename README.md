@@ -6,6 +6,10 @@
 
 ![Route Film의 여행 아틀라스 화면](docs/preview.png)
 
+## 대표 결과물
+
+교토·서울의 60초 영화와 교토 세로 영화, A3 포스터, 오프라인 인터랙티브 아틀라스의 실제 검증을 마쳤습니다. 전달용 파일은 GitHub 릴리스 또는 인계 시 제공한 파일 묶음에서 받을 수 있습니다. [상세 검증 기록](docs/PROGRESS.md)과 [시나리오](docs/STORYBOARD.md)를 함께 확인하세요.
+
 ## 실행
 
 Node.js 22+, FFmpeg(`libx264`, AAC), Chromium, 한글을 지원하는 시스템 글꼴이 필요합니다. 검증 환경은 Node 24.19.0, FFmpeg 7.1.5, Chromium 154, Noto CJK입니다.
