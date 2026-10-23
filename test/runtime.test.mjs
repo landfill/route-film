@@ -186,10 +186,10 @@ test("periodic metadata save failure cannot kill the background scheduler", asyn
       await app.post("/api/renders", { ...film, width: 1280, height: 720 })
     ).json();
     const dir = join(app.dir, "renders", job.id);
-    await waitFor(
-      async () => (await fetchJob(app, job.id)).status === "rendering",
-      "Render never started",
-    );
+    await waitFor(async () => {
+      const current = await fetchJob(app, job.id);
+      return current.status === "rendering" && current.progress > 0;
+    }, "Frame production never started after the initial state save");
     await waitFor(async () => {
       try {
         await stat(join(dir, "job.json.tmp"));
@@ -229,8 +229,10 @@ test("final metadata save failure preserves completed artifacts, cleans WAV and 
     const job = await (await app.post("/api/renders", film)).json(),
       dir = join(app.dir, "renders", job.id);
     await waitFor(
-      async () => (await fetchJob(app, job.id)).progress === 94,
-      "Poster phase never started",
+      async () =>
+        JSON.parse(await readFile(join(dir, "job.json"), "utf8")).progress ===
+        94,
+      "Poster phase state was not durably saved",
       30000,
     );
     await mkdir(join(dir, "job.json.tmp"));
