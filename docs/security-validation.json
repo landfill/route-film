@@ -61,5 +61,25 @@
       "unchanged": true
     }
   ],
-  "ci": "pending push and actual GitHub Actions execution"
+  "ci": {
+    "conclusion": "success",
+    "runId": 39986353990,
+    "headSha": "6e13e0c93d152d6693a6270b6a8586c42440e9f6",
+    "url": "https://github.com/landfill/route-film/actions/runs/39986353990",
+    "steps": [
+      "render dependencies",
+      "npm ci",
+      "npm test (37 passed)",
+      "npm run build",
+      "npm run test:browser"
+    ]
+  },
+  "downloadAndPlayback": {
+    "actualBrowserDownloads": [
+      "PDF (signature checked)",
+      "offline atlas HTML (bundle present)"
+    ],
+    "actualPrototypePlayback": true,
+    "pageErrors": []
+  }
 }
