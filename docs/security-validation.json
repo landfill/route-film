@@ -1,0 +1,65 @@
+{
+  "checkedOn": "2026-10-24 Asia/Seoul",
+  "unitAndApi": {
+    "passed": 37,
+    "failed": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "checkedOn": "2026-10-23T16:18:51.796Z",
+    "checks": [
+      "Both corrupt stores reset editor and preview to the same sample; latitude limits match",
+      "HTTP401: polling stops for 20 simulated seconds and manual retry makes one request",
+      "HTTP403: polling stops for 20 simulated seconds and manual retry makes one request",
+      "HTTP404: polling stops for 20 simulated seconds and manual retry makes one request",
+      "HTTP410: polling stops for 20 simulated seconds and manual retry makes one request",
+      "HTTP429 waits for Retry-After and then recovers to completed",
+      "Bundled atlas preserves literal URL text, Korean and escaped characters; offline execution has zero network requests",
+      "Real poster and atlas downloads remain available"
+    ],
+    "pageErrors": []
+  },
+  "media": {
+    "name": "custom",
+    "trip": "url(#evil) — 한글 & \"기억\"",
+    "duration": "12.000000",
+    "width": 1920,
+    "height": 1080,
+    "fps": "30/1",
+    "frames": "360",
+    "videoCodec": "h264",
+    "audioCodec": "aac",
+    "audioPeakDb": -19.3,
+    "audioMeanDb": -30.7,
+    "blackSegments": 0,
+    "fullDecode": "passed",
+    "poster": "A3 single-page PDF, vector SVG, 3508x4961 PNG"
+  },
+  "unchangedSampleFrames": [
+    {
+      "trip": "kyoto-sea",
+      "width": 1920,
+      "height": 1080,
+      "frames": 1800,
+      "svgSha256": "15f9bd342d1dd7ff32af0648da1d8610d495751e257192e81a283017d65b7421",
+      "unchanged": true
+    },
+    {
+      "trip": "seoul-blue",
+      "width": 1920,
+      "height": 1080,
+      "frames": 1800,
+      "svgSha256": "9a65fd576196e54cf2ceeb93abc5eace5c6bd6f9e3acb2553f7fc2c627035f9d",
+      "unchanged": true
+    },
+    {
+      "trip": "kyoto-sea",
+      "width": 1080,
+      "height": 1920,
+      "frames": 1800,
+      "svgSha256": "91b645a718230326ff26e9ec570b5f1d453e79746ea2f4f9598be98215fc9c93",
+      "unchanged": true
+    }
+  ],
+  "ci": "pending push and actual GitHub Actions execution"
+}

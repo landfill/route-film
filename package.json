@@ -14,10 +14,12 @@
     "build": "node scripts/build.mjs",
     "validate": "node scripts/validate.mjs",
     "test:ui": "node scripts/ui-check.mjs",
+    "test:browser": "node scripts/security-browser.mjs",
     "validate:portrait": "node scripts/validate.mjs --portrait",
     "export:atlas": "node scripts/export-atlas.mjs"
   },
   "dependencies": {
+    "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "sharp": "0.35.5"
   }

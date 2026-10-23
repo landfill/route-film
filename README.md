@@ -26,7 +26,9 @@ npm start
 node --env-file=.env server.mjs
 ```
 
-`.env.example`을 `.env`로 복사해 포트·Chromium 경로·FFmpeg 스레드 수를 조정할 수 있습니다. 기본 동작에는 API 키나 계정이 필요하지 않습니다. 이 앱은 로컬 개인 도구이며 인증을 갖춘 공개 다중 사용자 서비스가 아닙니다.
+`.env.example`을 `.env`로 복사해 포트·Chromium 경로·FFmpeg 스레드 수를 조정할 수 있습니다. 기본 동작에는 API 키나 계정이 필요하지 않습니다. Chromium의 기본 경로가 다른 머신에서는 `CHROMIUM_PATH`를 실제 실행 파일로 설정하세요. 없거나 실행할 수 없으면 설치·설정 안내와 HTTP 503을 반환합니다. 이 앱은 로컬 개인 도구이며 인증을 갖춘 공개 다중 사용자 서비스가 아닙니다.
+
+Host는 모든 요청에서 검사합니다. 기본 허용 호스트는 `localhost`, `127.0.0.1`, `[::1]`이며 `HOST`는 바인딩 주소만 결정합니다. `HOST=0.0.0.0`으로 바꾸어도 임의의 요청 호스트가 허용되지 않습니다. 추가 도메인은 `ALLOWED_HOSTS`, HTTPS 프록시의 정확한 브라우저 출처는 `ALLOWED_ORIGINS`에 명시해야 합니다. 프록시는 원래 Host를 유지해야 하며 전달 헤더는 신뢰하지 않습니다. 자세한 구성과 공개 서비스에 남은 조건은 [보안·운영 문서](docs/SECURITY.md)를 확인하세요.
 
 ## 사용 흐름
 
@@ -46,13 +48,14 @@ node --env-file=.env server.mjs
 
 인터랙티브 `atlas.html`은 여행과 렌더러를 한 파일에 담습니다. 다운로드 후 브라우저에서 열면 인터넷 연결 없이 지도·장소 선택·시간 탐색·영화 장면 미리보기를 사용할 수 있습니다. 여행을 수정하거나 새 MP4를 만들 때는 전체 앱을 실행하세요. 기본 두 여행의 파일만 만들려면 `npm run export:atlas`, 자신의 JSON을 사용하려면 `node scripts/export-atlas.mjs trip.json atlas.html`을 실행합니다.
 
-`data/renders/<작업 ID>/`에 `trip.json`, `job.json`, `film.mp4`, `poster.svg`, `poster.pdf`, `poster.png`가 저장됩니다. 합성 중간 음원도 작업 디렉터리에 생성됩니다. `data/`, `artifacts/`, `node_modules/`, `dist/`는 Git 추적 대상이 아닙니다. 생성 결과를 보관할 때는 이 폴더를 별도로 백업하세요. 서버가 중단되면 진행 중이던 작업은 다음 시작 시 실패 상태로 복구되며 사용자가 다시 시도할 수 있습니다.
+`data/renders/<작업 ID>/`에 `trip.json`, `job.json`, `film.mp4`, `poster.svg`, `poster.pdf`, `poster.png`가 저장됩니다. 합성 중간 음원은 작업 중에만 생성되며 FFmpeg 종료를 기다린 후 정리합니다. 새 작업의 완료·실패·취소 시 알려진 임시 파일을 정리하고 완성 산출물과 원본 JSON은 자동 삭제하지 않습니다. 상태 저장만 실패하면 작업은 실패로 표시하고 이미 만들어진 결과 다운로드는 보존합니다. 강제 종료 뒤 남은 파일과 이전 버전의 중간 파일 정리 정책은 [보안·운영 문서](docs/SECURITY.md)에 설명합니다. `data/`, `artifacts/`, `node_modules/`, `dist/`는 Git 추적 대상이 아닙니다. 생성 결과를 보관할 때는 이 폴더를 별도로 백업하세요. 서버가 중단되면 진행 중이던 작업은 다음 시작 시 실패 상태로 복구되며 사용자가 다시 시도할 수 있습니다.
 
 ## 검증과 빌드
 
 ```bash
 npm test
 npm run build
+npm run test:browser # 격리된 서버를 자동 실행하는 보안·복원·폴링 검사
 
 # npm start로 앱이 실행 중인 상태에서, 별도 터미널에서 실행
 npm run test:ui
@@ -61,17 +64,23 @@ npm run validate:portrait
 node scripts/ui-check.mjs --media
 ```
 
-`test:ui`는 편집·저장·복원·JSON 입출력·미리보기·영문 전환·모바일 레이아웃을 Chromium에서 검사합니다. `validate`는 **교토와 서울의 60초 가로 영상 두 편**을 실제로 생성해 검사하고, `validate:portrait`는 **60초 세로 영상 한 편**을 생성합니다. `--media` 검사는 완료된 60초 결과물의 실제 브라우저 재생과 장면 탐색을 확인합니다. 검증 도구에는 FFmpeg/ffprobe 외에 Poppler의 `pdfinfo`, `pdftotext`가 필요합니다. 서버 주소가 다르면 `APP_URL`을 지정하세요.
+`test:ui`는 편집·저장·복원·JSON 입출력·미리보기·영문 전환·모바일 레이아웃을 Chromium에서 검사합니다. `validate`는 **교토와 서울의 60초 가로 영상 두 편**을 실제로 생성해 검사하고, `validate:portrait`는 **60초 세로 영상 한 편**을 생성합니다. `--media` 검사는 완료된 60초 결과물의 실제 브라우저 재생과 장면 탐색을 확인합니다. CI는 GitHub Actions에서 의존성 준비, `npm ci`, `npm test`, `npm run build`, `npm run test:browser`를 실행합니다. 검증 도구에는 FFmpeg/ffprobe 외에 Poppler의 `pdfinfo`, `pdftotext`가 필요합니다. 서버 주소가 다르면 `APP_URL`을 지정하세요.
 
 빠른 기술 검증에는 `node scripts/validate.mjs --prototype`을 사용할 수 있습니다. 이 명령은 같은 경로로 12초 영상을 출력하며 전체 60초 검증을 대체하지 않습니다. 결과는 `artifacts/kyoto/`, `artifacts/seoul/`, `artifacts/portrait/`와 JSON 검사 보고서에 보관됩니다. 각 폴더에는 영상, 포스터, 여행 JSON, 장면별 주요 프레임과 contact sheet가 들어갑니다.
 
-`build`는 실제 앱 모듈의 문법·진입점을 확인하고 `dist/`에 서버와 정적 파일을 복사하며 파일 해시를 기록합니다. 프런트엔드는 브라우저 ES 모듈로 실행되어 번들러가 필요하지 않습니다. 서버와 FFmpeg가 필요한 앱이므로 `dist/`의 정적 파일만 호스팅해서는 영상 출력 API가 동작하지 않습니다.
+`build`는 실제 앱 모듈의 문법·진입점을 확인하고 `dist/`에 서버와 정적 파일을 복사하며 파일 해시를 기록합니다. 편집기는 브라우저 ES 모듈로 실행하고, 다운로드용 오프라인 아틀라스는 esbuild로 import까지 포함한 독립 번들을 만듭니다. 서버와 FFmpeg가 필요한 앱이므로 `dist/`의 정적 파일만 호스팅해서는 영상 출력 API가 동작하지 않습니다.
 
 ```bash
 cd dist
 npm ci --omit=dev
 npm start
 ```
+
+영상과 포스터는 `RENDER_CONCURRENCY`(기본 1)를 공유하고, 초기화·대기·실행을 합친 `RENDER_QUEUE_LIMIT`(기본 3)을 초과하면 HTTP 429와 `Retry-After`를 반환합니다. 포스터 요청 연결이 중단되면 대기 또는 실행 중 작업을 취소하고 자원을 정리합니다.
+
+브라우저의 상태 조회는 401·403·404·410 등 영구 오류에서 중단하고 **상태 다시 확인** 버튼을 제공합니다. 429는 `Retry-After`를 따르고 네트워크·일시적 서버 오류는 최대 5회 실패까지 지수 백오프로 재시도합니다. 작업을 바꾸면 이전 조회를 취소하고 늦은 응답을 무시합니다.
+
+새 JSON의 `seed`는 0–2147483647 범위의 정수 number이며 생략 시 2718입니다. 숫자 문자열·빈 문자열·불리언·null은 허용하지 않습니다.
 
 검사 범위와 현재 결과는 [검증 기록](docs/PROGRESS.md)을 확인하세요. 단위 테스트 통과와 실제 MP4·PDF·브라우저 검증을 구분해 기록합니다.
 

@@ -1,25 +1,31 @@
-import { mkdir, writeFile, readFile, copyFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
 import sharp from "sharp";
 import { sampleTrips } from "../shared/samples.mjs";
-import { timeline, renderFrame } from "../shared/core.mjs";
+import { timeline, normalizeTrip } from "../shared/core.mjs";
 
 const base = process.env.APP_URL || "http://127.0.0.1:3000";
 const root = resolve(import.meta.dirname, "..");
-const artifacts = resolve(root, "artifacts");
+const output = process.argv
+  .find((arg) => arg.startsWith("--output="))
+  ?.slice(9);
+const input = process.argv.find((arg) => arg.startsWith("--input="))?.slice(8);
+const artifacts = resolve(root, output || "artifacts");
 await mkdir(artifacts, { recursive: true });
 const short = process.argv.includes("--prototype");
 const portrait = process.argv.includes("--portrait");
 const selectedTrip = process.argv
   .find((arg) => arg.startsWith("--trip="))
   ?.slice(7);
-const chosen = selectedTrip
-  ? sampleTrips.filter((t) => t.id === selectedTrip)
-  : short || portrait
-    ? [sampleTrips[0]]
-    : sampleTrips;
+const chosen = input
+  ? [normalizeTrip(JSON.parse(await readFile(resolve(root, input), "utf8")))]
+  : selectedTrip
+    ? sampleTrips.filter((t) => t.id === selectedTrip)
+    : short || portrait
+      ? [sampleTrips[0]]
+      : sampleTrips;
 assert.ok(chosen.length, "Unknown trip ID");
 const report = [];
 for (const [index, trip] of chosen.entries()) {
@@ -49,13 +55,15 @@ for (const [index, trip] of chosen.entries()) {
     }
   }
   assert.equal(job.status, "completed", job.error);
-  const name = short
-    ? "prototype"
-    : portrait
-      ? "portrait"
-      : trip.id === "kyoto-sea"
-        ? "kyoto"
-        : "seoul";
+  const name = input
+    ? "custom"
+    : short
+      ? "prototype"
+      : portrait
+        ? "portrait"
+        : trip.id === "kyoto-sea"
+          ? "kyoto"
+          : "seoul";
   const dest = resolve(artifacts, name);
   await mkdir(dest, { recursive: true });
   for (const [format, url] of Object.entries(job.outputs)) {

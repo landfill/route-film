@@ -1,3 +1,5 @@
+import { restoreTrip } from "/storage.mjs";
+import { requestJSON, createJobPoller } from "/client.mjs";
 import {
   normalizeTrip,
   validateTrip,
@@ -129,7 +131,7 @@ const words = {
     saved: "여행을 이 기기에 저장했습니다.",
     loaded: "여행을 불러왔습니다.",
     badFile: "여행 JSON 파일을 확인해 주세요.",
-    recovered: "저장된 데이터에 문제가 있어 샘플 여행을 열었습니다.",
+    recovered: "저장된 데이터에 문제가 있어 사용 가능한 여행을 복구했습니다.",
     validation:
       "입력 내용을 확인해 주세요. 미리보기에는 마지막 유효한 여행이 표시됩니다.",
     all: "전체 여정",
@@ -228,8 +230,7 @@ const words = {
     saved: "Journey saved on this device.",
     loaded: "Journey imported.",
     badFile: "Please check your journey JSON file.",
-    recovered:
-      "Saved data could not be restored. A sample journey is open instead.",
+    recovered: "Saved data was damaged. A usable journey has been restored.",
     validation:
       "Please check your inputs. The preview shows the last valid version of your journey.",
     all: "THE WHOLE JOURNEY",
@@ -257,46 +258,20 @@ const words = {
   },
 };
 let lang = "ko",
-  trip = clone(sampleTrips[0]),
-  lastValid = normalizeTrip(trip),
-  restored = false,
   storageAvailable = true;
 try {
   lang =
     JSON.parse(localStorage.getItem(SETTINGS) || "{}").lang === "en"
       ? "en"
       : "ko";
-  const raw = localStorage.getItem(STORE);
-  if (raw) {
-    const saved = JSON.parse(raw);
-    if (
-      !saved ||
-      !Array.isArray(saved.stops) ||
-      saved.stops.length < 2 ||
-      saved.stops.length > 12 ||
-      !saved.stops.every(
-        (s) =>
-          s &&
-          typeof s.id === "string" &&
-          typeof s.name === "string" &&
-          typeof s.datetime === "string",
-      )
-    )
-      throw new Error("Invalid saved draft");
-    trip = saved;
-    try {
-      lastValid = normalizeTrip(saved);
-    } catch {
-      lastValid = normalizeTrip(
-        JSON.parse(
-          localStorage.getItem(LAST_VALID) || JSON.stringify(sampleTrips[0]),
-        ),
-      );
-    }
-  }
-} catch {
-  restored = true;
-}
+} catch {}
+const savedTrip = restoreTrip(
+  (key) => localStorage.getItem(key),
+  sampleTrips[0],
+);
+const trip = savedTrip.trip,
+  lastValid = savedTrip.valid,
+  restored = savedTrip.recovered;
 const state = {
   trip,
   valid: lastValid,
@@ -313,6 +288,7 @@ const state = {
   jobFormat: "landscape",
   errors: [],
   renderBusy: false,
+  pollStopped: false,
 };
 const t = (k) => words[lang][k] || k;
 const modes = {
@@ -349,7 +325,7 @@ let toastTimer,
   playId,
   lastPlay = 0,
   frameTime = 0,
-  polling = null;
+  jobRevision = 0;
 function notify(message) {
   const el = $("#notice");
   el.textContent = message;
@@ -471,7 +447,7 @@ function renderInspector() {
   state.selected = s.id;
   const i = state.trip.stops.indexOf(s);
   $("#inspector").innerHTML =
-    `<div class="panel-kicker">${t("note")}<span class="stop-index">PLACE ${String(i + 1).padStart(2, "0")}</span></div><div class="inspector-head"><h2>${esc(s.name)}</h2>${icon(s.mode)}</div><p class="inspector-date">${esc(String(s.datetime).replace("T", " · "))}</p><div class="inspector-fields"><label class="field-wide">${t("name")}<input data-field="name" aria-label="${t("name")}" maxlength="100" value="${esc(s.name)}"></label><label class="field-wide">${t("datetime")}<input data-field="datetime" aria-label="${t("datetime")}" type="datetime-local" value="${esc(s.datetime)}"></label><label>${t("lat")}<input data-field="lat" aria-label="${t("lat")}" type="number" min="-85" max="85" step="0.000001" value="${esc(s.lat)}"></label><label>${t("lon")}<input data-field="lon" aria-label="${t("lon")}" type="number" min="-180" max="180" step="0.000001" value="${esc(s.lon)}"></label><label>${t("mode")}<select data-field="mode" aria-label="${t("mode")}">${Object.entries(
+    `<div class="panel-kicker">${t("note")}<span class="stop-index">PLACE ${String(i + 1).padStart(2, "0")}</span></div><div class="inspector-head"><h2>${esc(s.name)}</h2>${icon(s.mode)}</div><p class="inspector-date">${esc(String(s.datetime).replace("T", " · "))}</p><div class="inspector-fields"><label class="field-wide">${t("name")}<input data-field="name" aria-label="${t("name")}" maxlength="100" value="${esc(s.name)}"></label><label class="field-wide">${t("datetime")}<input data-field="datetime" aria-label="${t("datetime")}" type="datetime-local" value="${esc(s.datetime)}"></label><label>${t("lat")}<input data-field="lat" aria-label="${t("lat")}" type="number" min="-90" max="90" step="0.000001" value="${esc(s.lat)}"></label><label>${t("lon")}<input data-field="lon" aria-label="${t("lon")}" type="number" min="-180" max="180" step="0.000001" value="${esc(s.lon)}"></label><label>${t("mode")}<select data-field="mode" aria-label="${t("mode")}">${Object.entries(
       modes[lang],
     )
       .map(
@@ -692,26 +668,8 @@ function downloadJson() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   notify(t("saved"));
 }
-async function api(url, options = {}) {
-  let r;
-  try {
-    r = await fetch(url, options);
-  } catch {
-    throw new Error(t("unavailable"));
-  }
-  let data;
-  try {
-    data = await r.json();
-  } catch {
-    throw new Error(t("unavailable"));
-  }
-  if (!r.ok)
-    throw new Error(
-      typeof data.error === "string"
-        ? data.error
-        : data.message || `HTTP ${r.status}`,
-    );
-  return data;
+function api(url, options = {}) {
+  return requestJSON(url, options, t("unavailable"));
 }
 const activeJob = () =>
   Boolean(state.job && ["queued", "rendering"].includes(state.job.status));
@@ -765,7 +723,8 @@ function renderJob() {
   const stale =
     state.jobSnapshot &&
     JSON.stringify(state.trip) !== JSON.stringify(state.jobSnapshot);
-  el.innerHTML = `<div class="job-card"><div class="job-heading"><strong>${t(label)}</strong><span>${status === "completed" ? icon("check") : Math.round(progress) + "%"}</span></div><p class="job-stage">${esc(job.tripTitle || state.jobSnapshot?.title || "")} ${job.stage ? "· " + esc(job.stage) : ""}</p>${job.error ? `<p class="job-stage" role="alert">${esc(job.error)}</p>` : ""}<div class="job-progress"><i style="width:${status === "completed" ? 100 : progress}%"></i></div>${stale ? `<p class="stale-note">${t("stale")}</p>` : ""}${status === "completed" ? outputLinks(job.outputs) : ""}<div class="job-controls">${activeJob() ? `<button class="plain-btn" id="cancel-job">${t("cancel")}</button>` : ""}${["failed", "cancelled"].includes(status) ? `<button class="button outline" id="retry-job">${icon("reset")}${t("retry")}</button>` : ""}</div></div>`;
+  el.innerHTML = `<div class="job-card"><div class="job-heading"><strong>${t(label)}</strong><span>${status === "completed" ? icon("check") : Math.round(progress) + "%"}</span></div><p class="job-stage">${esc(job.tripTitle || state.jobSnapshot?.title || "")} ${job.stage ? "· " + esc(job.stage) : ""}</p>${job.error ? `<p class="job-stage" role="alert">${esc(job.error)}</p>` : ""}<div class="job-progress"><i style="width:${status === "completed" ? 100 : progress}%"></i></div>${stale ? `<p class="stale-note">${t("stale")}</p>` : ""}${job.outputs && ["completed", "failed"].includes(status) ? outputLinks(job.outputs) : ""}<div class="job-controls">${state.pollStopped ? `<button class="button outline" id="poll-status-retry">${lang === "ko" ? "상태 다시 확인" : "Check status again"}</button>` : ""}${activeJob() ? `<button class="plain-btn" id="cancel-job">${t("cancel")}</button>` : ""}${["failed", "cancelled"].includes(status) ? `<button class="button outline" id="retry-job">${icon("reset")}${t("retry")}</button>` : ""}</div></div>`;
+  if ($("#poll-status-retry")) $("#poll-status-retry").onclick = pollJob;
   if ($("#cancel-job")) $("#cancel-job").onclick = cancelJob;
   if ($("#retry-job")) $("#retry-job").onclick = () => startRender(true);
   $("#render-start").disabled =
@@ -781,27 +740,41 @@ function renderPosterStatus() {
       : "";
   $("#poster-start").disabled = state.posterBusy || state.errors.length > 0;
 }
-async function pollJob() {
-  if (!state.job?.id) return;
-  clearTimeout(polling);
-  try {
-    const result = await api(
-      `/api/renders/${encodeURIComponent(state.job.id)}`,
-    );
-    state.job = result.job || result;
+const jobPoller = createJobPoller({
+  getJob: async (id, signal) => {
+    const result = await api(`/api/renders/${encodeURIComponent(id)}`, {
+      signal,
+    });
+    return result.job || result;
+  },
+  onJob: (job) => {
+    state.job = job;
+    state.pollStopped = false;
     rememberJob();
     renderJob();
-    if (activeJob()) polling = setTimeout(pollJob, 1200);
-  } catch (e) {
-    notify(e.message);
-    polling = setTimeout(pollJob, 5000);
-  }
+  },
+  onIssue: (error, { terminal }) => {
+    state.pollStopped = terminal;
+    notify(
+      terminal
+        ? `${error.message} ${lang === "ko" ? "상태 다시 확인 버튼으로 재연결할 수 있습니다." : "Use Check status again to reconnect."}`
+        : error.message,
+    );
+    renderJob();
+  },
+});
+function pollJob() {
+  if (!state.job?.id) return;
+  state.pollStopped = false;
+  renderJob();
+  jobPoller.start(state.job.id);
 }
 async function startRender(retry = false) {
   safeValidation();
   if ((state.errors.length && !retry) || state.renderBusy || activeJob())
     return;
   state.renderBusy = true;
+  jobRevision++;
   renderJob();
   $("#render-start").disabled = true;
   try {
@@ -873,36 +846,37 @@ async function startPoster() {
   }
 }
 async function restoreJob() {
+  const revision = jobRevision;
   let saved;
   try {
     saved = JSON.parse(localStorage.getItem(JOB) || "null");
   } catch {}
+  async function apply(id, snapshot, format) {
+    const result = await api(`/api/renders/${encodeURIComponent(id)}`);
+    if (revision !== jobRevision) return;
+    state.job = result.job || result;
+    state.jobSnapshot = state.job.trip || snapshot;
+    state.jobFormat =
+      state.job.width < state.job.height ? "portrait" : format || "landscape";
+    rememberJob();
+    renderJob();
+    if (activeJob()) pollJob();
+  }
   if (saved?.id) {
     try {
-      const job = await api(`/api/renders/${encodeURIComponent(saved.id)}`);
-      state.job = job.job || job;
-      state.jobSnapshot = saved.snapshot;
-      state.jobFormat = saved.format || "landscape";
-      renderJob();
-      if (activeJob()) pollJob();
+      await apply(saved.id, saved.snapshot, saved.format);
       return;
     } catch {}
   }
+  if (revision !== jobRevision) return;
   try {
     const data = await api("/api/renders");
+    if (revision !== jobRevision) return;
     const jobs = Array.isArray(data) ? data : data.jobs || [];
-    const current = jobs.find((j) =>
-      ["queued", "rendering"].includes(j.status),
+    const current = jobs.find((job) =>
+      ["queued", "rendering"].includes(job.status),
     );
-    if (current) {
-      state.job = current;
-      state.jobSnapshot = current.trip;
-      state.jobFormat =
-        current.width < current.height ? "portrait" : "landscape";
-      rememberJob();
-      renderJob();
-      pollJob();
-    }
+    if (current) await apply(current.id);
   } catch {}
 }
 function bindShell() {
@@ -1099,5 +1073,6 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) pause();
 });
 window.addEventListener("beforeunload", () => {
+  jobPoller.stop();
   persist();
 });

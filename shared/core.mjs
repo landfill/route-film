@@ -75,10 +75,11 @@ export function validateTrip(trip) {
   )
     errors.push("부제는 120자 이내로 입력해 주세요.");
   if (
-    trip.seed != null &&
-    (!Number.isInteger(Number(trip.seed)) ||
-      Number(trip.seed) < 0 ||
-      Number(trip.seed) > 2147483647)
+    trip.seed !== undefined &&
+    (typeof trip.seed !== "number" ||
+      !Number.isInteger(trip.seed) ||
+      trip.seed < 0 ||
+      trip.seed > 2147483647)
   )
     errors.push("시드는 0–2147483647 사이의 정수여야 합니다.");
   if (
@@ -296,7 +297,13 @@ function svg(body, width, height, label = "루트 필름") {
   const prefix = `rf-${hash(body).toString(36)}-${width}-${height}-`;
   const local = body
     .replace(/\sid="([^"]+)"/g, (_, id) => ` id="${prefix}${id}"`)
-    .replace(/url\(#([^)]+)\)/g, (_, id) => `url(#${prefix}${id})`);
+    .replace(
+      /(\s[\w:.-]+=")([^"]*)(")/g,
+      (_, start, value, end) =>
+        start +
+        value.replace(/url\(#([^)]+)\)/g, (_, id) => `url(#${prefix}${id})`) +
+        end,
+    );
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${safe(label)}"><style>text{font-family:${FONT}}</style>${local}</svg>`;
 }
 function mapPoints(trip, box) {
