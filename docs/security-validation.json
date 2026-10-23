@@ -61,7 +61,15 @@
       "unchanged": true
     }
   ],
-  "ci": {
+  "downloadAndPlayback": {
+    "actualBrowserDownloads": [
+      "PDF (signature checked)",
+      "offline atlas HTML (bundle present)"
+    ],
+    "actualPrototypePlayback": true,
+    "pageErrors": []
+  },
+  "initialCiVerification": {
     "conclusion": "success",
     "runId": 39986353990,
     "headSha": "6e13e0c93d152d6693a6270b6a8586c42440e9f6",
@@ -74,12 +82,9 @@
       "npm run test:browser"
     ]
   },
-  "downloadAndPlayback": {
-    "actualBrowserDownloads": [
-      "PDF (signature checked)",
-      "offline atlas HTML (bundle present)"
-    ],
-    "actualPrototypePlayback": true,
-    "pageErrors": []
+  "ci": {
+    "latestMainWorkflow": "https://github.com/landfill/route-film/actions/workflows/ci.yml?query=branch%3Amain",
+    "regressionFix": "Fixed-time concurrency test replaced with actual Chromium process-start handshake; same overload assertions retained",
+    "observedIntermittentFailureRun": 39986753243
   }
 }

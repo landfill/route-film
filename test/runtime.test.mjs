@@ -24,7 +24,21 @@ const cancelled = async (app, id) => {
 };
 
 test("film and standalone posters share reservations, reject overload, and release after cancellation", async () => {
-  const app = await startServer({ RENDER_QUEUE_LIMIT: "1" });
+  const settings = { RENDER_QUEUE_LIMIT: "1" };
+  let release, ready;
+  const quote = (value) => "'" + value.replace(/'/g, "'\\''") + "'";
+  const app = await startServer(settings, async (dir) => {
+    release = join(dir, "release-chromium");
+    ready = join(dir, "chromium-started");
+    const wrapper = join(dir, "chromium-gate");
+    const binary = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
+    await writeFile(
+      wrapper,
+      `#!/bin/sh\n: > ${quote(ready)}\nwhile [ ! -f ${quote(release)} ]; do sleep 0.01; done\nexec ${quote(binary)} "$@"\n`,
+      { mode: 0o755 },
+    );
+    settings.CHROMIUM_PATH = wrapper;
+  });
   try {
     const response = await app.post("/api/renders", film);
     assert.equal(response.status, 202);
@@ -40,18 +54,44 @@ test("film and standalone posters share reservations, reject overload, and relea
         !files.includes("score.wav") && !files.includes("film.partial.mp4")
       );
     }, "Intermediate inputs leaked after cancellation");
-    const first = app.post("/api/poster", { trip: sampleTrips[0] });
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    // Wait for a real browser launch, not an assumed delay after cancellation.
+    // The gate holds this process until the simultaneous-request assertion ends.
+    let first, firstResponse;
+    const begin = () => {
+      first = app
+        .post("/api/poster", { trip: sampleTrips[0] })
+        .then((response) => {
+          firstResponse = response;
+          return response;
+        });
+    };
+    begin();
+    await waitFor(async () => {
+      if (firstResponse) {
+        assert.equal(firstResponse.status, 429);
+        await firstResponse.arrayBuffer();
+        firstResponse = undefined;
+        begin();
+      }
+      try {
+        await stat(ready);
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Poster did not acquire its slot and launch Chromium");
     assert.equal(
       (await app.post("/api/poster", { trip: sampleTrips[1] })).status,
       429,
     );
+    await writeFile(release, "continue");
     assert.equal((await first).status, 201);
     assert.equal(
       (await app.post("/api/poster", { trip: sampleTrips[1] })).status,
       201,
     );
   } finally {
+    await writeFile(release, "continue");
     await app.close();
   }
 });
